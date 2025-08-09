@@ -35,7 +35,8 @@ app.get("/api/:date?", (req, res) => {
       dateRes = new Date(parseInt(req.params.date));
     }
 
-    if (dateRes.getTime()){
+    if (!isNaN(dateRes.getTime())) {
+
       let unixRes = dateRes.getTime();
       res.json({
         unix: unixRes,
