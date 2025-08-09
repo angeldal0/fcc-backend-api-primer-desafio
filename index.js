@@ -1,63 +1,74 @@
-// index.js
-// where your node app starts
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+let bodyParser = require("body-parser");
+const dns = require('dns');
 
-// init project
-var express = require('express');
-var app = express();
+const app = express();
 
-// enable CORS (https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)
-// so that your API is remotely testable by FCC 
-var cors = require('cors');
-app.use(cors({optionsSuccessStatus: 200}));  // some legacy browsers choke on 204
+// Basic Configuration
+const port = process.env.PORT || 3000;
 
-// http://expressjs.com/en/starter/static-files.html
-app.use(express.static('public'));
+app.use(cors());
 
-// http://expressjs.com/en/starter/basic-routing.html
-app.get("/", function (req, res) {
-  res.sendFile(__dirname + '/views/index.html');
+app.use('/public', express.static(`${process.cwd()}/public`));
+
+app.get('/', function(req, res) {
+  res.sendFile(process.cwd() + '/views/index.html');
 });
 
-
-// your first API endpoint... 
-app.get("/api/hello", function (req, res) {
-  res.json({greeting: 'hello API'});
+// Your first API endpoint
+app.get('/api/hello', function(req, res) {
+  res.json({ greeting: 'hello API' });
 });
 
-// Mi endpoint para la consulta "/api/:date?"
-// Sin control de errores
-app.get("/api/:date?", (req, res) => {
-  if (req.params.date) {
-    let dateRes;
-    let date_string = req.params.date;
-
-    if (/^\d+$/.test(date_string)) {
-      dateRes = new Date(Number(date_string)); // ó parseInt(date_string, 10)
-    } else {
-      dateRes = new Date(date_string);
+class Pareja{
+    constructor(original_url, short_url) {
+      this.original_url = original_url;
+      this.short_url = short_url;
     }
+}
 
-    if (!isNaN(dateRes.getTime())) {
+let diccionario = {
+  inicial : 0
+}
 
-      let unixRes = dateRes.getTime();
-      res.json({
-        unix: unixRes,
-        utc: dateRes.toUTCString()
-      })
-    } else {
-      res.json({error : "Invalid Date"});
-    }
+app.use("/api/shorturl", bodyParser.urlencoded({extended: false}));
 
-  } else {
-    res.json({
-      unix: new Date().getTime(),
-      utc : new Date().toUTCString()
-    })
+// Mi endpoint
+let short_url = 1;
+app.post("/api/shorturl", (req, res) => {
+  const url = req.body.url;
+  let hostname;
+
+  try {
+    hostname = new URL(url).hostname;
+  } catch {
+    return res.json({ error: 'invalid url' });
   }
+
+  dns.lookup(hostname , (err, adrress, family) => {
+    if (err) {
+      return res.json({ error: 'invalid url' });
+    }
+
+    if(isNaN(diccionario[req.body.url])){
+      diccionario[short_url] = req.body.url;
+      diccionario[req.body.url] = short_url++;
+    }
+
+    res.json({original_url : req.body.url, short_url : diccionario[req.body.url]});
+  })
+
+})
+
+// en la ruta "/:" los : hace que sea un parametro, sin los dos puntos es algo que está en la ruta
+// ? hace que sea opcional
+app.get("/api/shorturl/:surl?", (req, res, next) => {
+  res.redirect(diccionario[parseInt(req.params.surl)]);
+  next();
 });
 
-
-// Listen on port set in environment variable or default to 3000
-var listener = app.listen(process.env.PORT || 3000, function () {
-  console.log('Your app is listening on port ' + listener.address().port);
+app.listen(port, function() {
+  console.log(`Listening on port ${port}`);
 });
