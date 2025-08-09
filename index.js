@@ -28,26 +28,27 @@ app.get("/api/hello", function (req, res) {
 // Sin control de errores
 app.get("/api/:date?", (req, res) => {
   if (req.params.date) {
-    /*let str = req.params.date.split("-");
-    let year = str[0];
-    let month = str[1];
-    let day = str[2];
+    let dateRes;
+    if(req.params.date.includes("-")){
+      dateRes = new Date(req.params.date);
+    } else {
+      dateRes = new Date(parseInt(req.params.date));
+    }
 
-    let date = new Date(year, month, day);*/
-    let dateRes = new Date(req.params.date);
-    if (dateRes){
-      let unixRes = date.getTime();
+    if (dateRes.getTime()){
+      let unixRes = dateRes.getTime();
       res.json({
         unix: unixRes,
-        utc: dateRes
+        utc: dateRes.toUTCString()
       })
     } else {
       res.json({error : "Invalid Date"});
     }
+
   } else {
     res.json({
-      unix: new Date().now().getTime(),
-      utc : new Date().now()
+      unix: new Date().getTime(),
+      utc : new Date().toUTCString()
     })
   }
 });
