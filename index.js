@@ -17,10 +17,10 @@ app.get('/', (req, res) => {
 
 // Primero hay que definir los esquemas
 const ejercicioEsquema = new mongoose.Schema({
-  description: { type: String, required: true},
-  duration: { type: Number, required: true},
-  date: { type: String, required: true}
-})
+  description: { type: String, required: true },
+  duration: { type: Number, required: true },
+  date: { type: Date, required: true }
+});
 
 const usuarioEsquema = new mongoose.Schema({
   username : { type: String, required: true},
@@ -62,6 +62,7 @@ Log:
 
 // Ahora el modelo
 const Usuario = mongoose.model('Usuario', usuarioEsquema);
+
 
 // Ahora los metodos CRUD del modelo
 // Agregar un usuario a la base de datos
@@ -112,7 +113,7 @@ app.post("/api/users/:_id/exercises", (req, res) => {
   const user_id = req.params._id; //Se hace así y no como el resto porque es diferente, el parametro está en la url
   const description = req.body.description;
   const duration = parseInt(req.body.duration);
-  let date = req.body.date;
+  let date = req.body.date ? new Date(req.body.date) : new Date();
 
   if (!user_id) {
     return res.status(400).json({ error: "_id is required" });
@@ -122,9 +123,6 @@ app.post("/api/users/:_id/exercises", (req, res) => {
   }
   if (!duration) {
     return res.status(400).json({ error: "Duration is required" });
-  }
-  if (!date) {
-    date = new Date().toDateString();
   }
 
   /*res.json({
@@ -150,7 +148,14 @@ app.post("/api/users/:_id/exercises", (req, res) => {
     res.json({
       _id: updateUser._id,
       username: updateUser.username,
-      date: date,
+      date: date.toLocaleDateString("en-US", {
+        timeZone: "UTC",
+        weekday: "short",
+        month: "short",
+        day: "2-digit",
+        year: "numeric"
+      }).replaceAll(',', ''),
+
       duration: duration,
       description: description
     })
@@ -159,6 +164,12 @@ app.post("/api/users/:_id/exercises", (req, res) => {
     res.status(500).json({ error: err });
   })
 })
+
+function formatDate(d) {
+  const dateObj = d ? new Date(d) : new Date();
+  return isNaN(dateObj.getTime()) ? new Date().toDateString() : dateObj.toDateString();
+}
+
 
 // endpoint para obtener todos los logs de un usuario
 app.get("/api/users/:_id/logs", (req, res) => {
@@ -183,7 +194,6 @@ app.get("/api/users/:_id/logs", (req, res) => {
     .then(user => {
       if (!user) return res.status(404).json({ error: "User not found" });
 
-      //Hay que filtrar logs desde aqui en js porque no es una coleccion aparte para hacer querys, se podria rehacer todo el modelo de datos
       let filteredLogs = user.log.filter(e => {
         const d = new Date(e.date);
         return d >= from && d <= to;
@@ -193,21 +203,39 @@ app.get("/api/users/:_id/logs", (req, res) => {
         filteredLogs = filteredLogs.slice(0, limit);
       }
 
-      res.json({
+      const response = {
         _id: user._id,
         username: user.username,
         count: filteredLogs.length,
-        log: filteredLogs.map(({ description, duration, date }) => ({
-          description,
-          duration,
-          date
+        log: filteredLogs.map(e => ({
+          description: e.description,
+          duration: e.duration,
+          date: new Date(e.date).toLocaleDateString("en-US", {
+            timeZone: "UTC",
+            weekday: "short",
+            month: "short",
+            day: "2-digit",
+            year: "numeric"
+          }).replaceAll(',', '')
+
         }))
-      });
+      };
+
+      if (req.query.from) {
+        response.from = formatDate(from);
+      }
+
+      if (req.query.to) {
+        response.to = formatDate(to);
+      }
+
+      res.json(response);
     })
     .catch(err => {
       res.status(500).json({ error: err.message });
     });
 });
+
 
 
 const listener = app.listen(process.env.PORT || 3000, () => {
