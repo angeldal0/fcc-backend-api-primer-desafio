@@ -29,10 +29,12 @@ app.get("/api/hello", function (req, res) {
 app.get("/api/:date?", (req, res) => {
   if (req.params.date) {
     let dateRes;
-    if(req.params.date.includes("-")){
-      dateRes = new Date(req.params.date);
+    let date_string = req.params.date;
+
+    if (/^\d+$/.test(date_string)) {
+      dateRes = new Date(Number(date_string)); // ó parseInt(date_string, 10)
     } else {
-      dateRes = new Date(parseInt(req.params.date));
+      dateRes = new Date(date_string);
     }
 
     if (!isNaN(dateRes.getTime())) {
